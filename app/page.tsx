@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 
 type Tab = "scraper" | "pexels" | "history";
 
@@ -38,10 +38,14 @@ function getHistory(): HistoryItem[] {
   } catch { return []; }
 }
 
-const TABS: { id: Tab; label: string; icon: string }[] = [
-  { id: "scraper", label: "URL Scraper", icon: "🔗" },
-  { id: "pexels",  label: "Pexels Search", icon: "📷" },
-  { id: "history", label: "History",      icon: "📁" },
+const ScrapeIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>;
+const SearchIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>;
+const HistoryIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.95"/></svg>;
+
+const BASE_TABS = [
+  { id: "scraper" as Tab, label: "URL Scraper", icon: <ScrapeIcon /> },
+  { id: "pexels"  as Tab, label: "Pexels Search", icon: <SearchIcon /> },
+  { id: "history" as Tab, label: "History", icon: <HistoryIcon /> },
 ];
 
 export default function Home() {
@@ -61,9 +65,6 @@ export default function Home() {
 
   const [downloading, setDownloading] = useState(false);
   const [history, setHistory] = useState<HistoryItem[]>([]);
-  const [dragOver, setDragOver] = useState(false);
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleScrape = async () => {
     if (!scrapeUrl.trim()) return;
@@ -129,6 +130,28 @@ export default function Home() {
 
   const loadHistory = useCallback(() => setHistory(getHistory()), []);
 
+  const clearHistory = () => {
+    try { localStorage.removeItem("ig_history"); } catch {}
+    setHistory([]);
+  };
+
+  // Ctrl+A to select all images
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
+      e.preventDefault();
+      if (tab === 'scraper' && scrapeImages.length > 0) {
+        setScrapeSelected(new Set(scrapeImages.map(i => i.url)));
+      } else if (tab === 'pexels' && pexelsImages.length > 0) {
+        setPexelsSelected(new Set(pexelsImages.map(i => i.url)));
+      }
+    }
+  }, [tab, scrapeImages, pexelsImages]);
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleKeyDown]);
+
   // Skeleton cards for loading state
   const SkeletonGrid = () => (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 10 }}>
@@ -163,8 +186,11 @@ export default function Home() {
         backdropFilter: "blur(12px)",
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <span style={{ fontSize: 20, fontWeight: 800, letterSpacing: -0.5 }}>
-            🖼️ Image Grabber
+          <div style={{ width: 34, height: 34, borderRadius: 8, background: "linear-gradient(135deg, #3b82f6, #1d4ed8)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          </div>
+          <span style={{ fontSize: 18, fontWeight: 800, letterSpacing: -0.5, color: "#fff" }}>
+            Image Grabber
           </span>
           <span style={{
             fontSize: 11, color: "#3b82f6", background: "rgba(59,130,246,0.1)",
@@ -174,36 +200,61 @@ export default function Home() {
             NuPeeks
           </span>
         </div>
-        <div style={{ fontSize: 12, color: "#374151" }}>
-          Scrape · Search · Download
+        <div style={{ fontSize: 12, color: "#6b7280", display: "flex", alignItems: "center", gap: 12 }}>
+          <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+            Scrape
+          </span>
+          <span>·</span>
+          <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            Search
+          </span>
+          <span>·</span>
+          <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Download
+          </span>
         </div>
       </div>
 
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "28px 20px" }}>
 
         {/* Tab bar */}
-        <div className="tab-bar animate-fade-in" style={{ display: "flex", gap: 6, marginBottom: 28, background: "#141414", padding: 5, borderRadius: 12, border: "1px solid #1f1f1f", width: "fit-content" }}>
-          {TABS.map(t => (
-            <button
-              key={t.id}
-              onClick={() => { setTab(t.id); if (t.id === "history") loadHistory(); }}
-              style={{
-                padding: "8px 18px",
-                borderRadius: 8,
-                border: "none",
-                fontSize: 13, fontWeight: 600,
-                cursor: "pointer",
-                transition: "all 0.18s",
-                background: tab === t.id ? "#3b82f6" : "transparent",
-                color: tab === t.id ? "#fff" : "#6b7280",
-                display: "flex", alignItems: "center", gap: 6,
-                whiteSpace: "nowrap",
-              }}
-            >
-              <span>{t.icon}</span>
-              <span>{t.label}</span>
-            </button>
-          ))}
+        <div className="tab-bar animate-fade-in" style={{ display: "flex", gap: 6, marginBottom: 28, background: "#141414", padding: 5, borderRadius: 12, border: "1px solid #1f1f1f", width: "fit-content", flexWrap: "wrap" }}>
+          {BASE_TABS.map(t => {
+            const badge = t.id === "scraper" ? scrapeImages.length : t.id === "pexels" ? pexelsImages.length : history.length;
+            return (
+              <button
+                key={t.id}
+                onClick={() => { setTab(t.id); if (t.id === "history") loadHistory(); }}
+                style={{
+                  padding: "8px 18px",
+                  borderRadius: 8,
+                  border: "none",
+                  fontSize: 13, fontWeight: 600,
+                  cursor: "pointer",
+                  transition: "all 0.18s",
+                  background: tab === t.id ? "#3b82f6" : "transparent",
+                  color: tab === t.id ? "#fff" : "#6b7280",
+                  display: "flex", alignItems: "center", gap: 6,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                <span>{t.icon}</span>
+                <span>{t.label}</span>
+                {badge > 0 && (
+                  <span style={{
+                    background: tab === t.id ? "rgba(255,255,255,0.25)" : "rgba(59,130,246,0.2)",
+                    color: tab === t.id ? "#fff" : "#3b82f6",
+                    fontSize: 10, fontWeight: 800,
+                    padding: "1px 6px", borderRadius: 10,
+                    minWidth: 18, textAlign: "center",
+                  }}>{badge}</span>
+                )}
+              </button>
+            );
+          })}
         </div>
 
         {/* URL Scraper */}
@@ -240,6 +291,7 @@ export default function Home() {
                   onClear={() => setScrapeSelected(new Set())}
                   onDownload={() => handleDownload(scrapeImages, scrapeSelected, "scraped")}
                   downloading={downloading}
+                  hint="Ctrl+A to select all"
                 />
                 <ImageGrid
                   images={scrapeImages}
@@ -285,6 +337,7 @@ export default function Home() {
                   onClear={() => setPexelsSelected(new Set())}
                   onDownload={() => handleDownload(pexelsImages, pexelsSelected, "pexels")}
                   downloading={downloading}
+                  hint="Ctrl+A to select all"
                 />
                 <ImageGrid
                   images={pexelsImages}
@@ -300,9 +353,22 @@ export default function Home() {
         {/* History */}
         {tab === "history" && (
           <div className="animate-fade-up">
-            <h2 style={{ fontSize: 15, fontWeight: 600, marginBottom: 18, color: "#6b7280" }}>
-              Last {MAX_HISTORY} downloads
-            </h2>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
+              <h2 style={{ fontSize: 15, fontWeight: 600, color: "#6b7280" }}>
+                Last {MAX_HISTORY} downloads
+              </h2>
+              {history.length > 0 && (
+                <button onClick={clearHistory} style={{
+                  background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)",
+                  color: "#fca5a5", fontSize: 12, fontWeight: 600, padding: "5px 12px",
+                  borderRadius: 7, cursor: "pointer", transition: "all 0.15s",
+                  display: "flex", alignItems: "center", gap: 6,
+                }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                  Clear History
+                </button>
+              )}
+            </div>
             {history.length === 0 ? (
               <EmptyState icon="📁" title="No download history yet" desc="Images you download will appear here." />
             ) : (
@@ -364,15 +430,16 @@ function ErrorBanner({ msg }: { msg: string }) {
       color: "#fca5a5", fontSize: 14, marginBottom: 18,
       display: "flex", alignItems: "center", gap: 10,
     }}>
-      ⚠️ {msg}
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      {msg}
     </div>
   );
 }
 
-function ActionRow({ count, selected, onSelectAll, onClear, onDownload, downloading }: {
+function ActionRow({ count, selected, onSelectAll, onClear, onDownload, downloading, hint }: {
   count: number; selected: number;
   onSelectAll: () => void; onClear: () => void;
-  onDownload: () => void; downloading: boolean;
+  onDownload: () => void; downloading: boolean; hint?: string;
 }) {
   return (
     <div className="action-row" style={{
@@ -382,6 +449,7 @@ function ActionRow({ count, selected, onSelectAll, onClear, onDownload, download
       <span style={{ color: "#6b7280", fontSize: 13 }}>
         <strong style={{ color: "#94a3b8" }}>{count}</strong> images ·{" "}
         <strong style={{ color: selected > 0 ? "#3b82f6" : "#6b7280" }}>{selected}</strong> selected
+        {hint && <span style={{ marginLeft: 8, fontSize: 11, color: "#374151" }}>({hint})</span>}
       </span>
       <button onClick={onSelectAll} style={btnSmall}>Select All</button>
       <button onClick={onClear} style={btnSmallGhost}>Clear</button>
@@ -396,7 +464,9 @@ function ActionRow({ count, selected, onSelectAll, onClear, onDownload, download
           cursor: selected === 0 ? "not-allowed" : "pointer",
         }}
       >
-        {downloading ? <><Spinner /> Zipping…</> : `⬇ Download (${selected})`}
+        {downloading ? <><Spinner /> Zipping&hellip;</> : (
+          <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Download ({selected})</>
+        )}
       </button>
     </div>
   );
@@ -464,7 +534,7 @@ function ImageGrid({ images, selected, onToggle, showPhotographer }: {
                 padding: "4px 7px", background: "rgba(0,0,0,0.75)",
                 overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
               }}>
-                📷 {img.photographer}
+                {img.photographer}
               </div>
             )}
           </div>
